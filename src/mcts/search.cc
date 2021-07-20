@@ -109,18 +109,18 @@ class MEvaluator {
   float GetM(const EdgeAndNode& child, float q) const {
     if (!enabled_ || !parent_within_threshold_) return 0.0f;
     const float child_m = child.GetM(parent_m_);
-    float m = std::clamp(m_slope_ * (child_m - parent_m_), -m_cap_, m_cap_);
+    float m = std::clamp(m_slope_ * (child_m - parent_m_), -m_slope_ * m_cap_, m_slope_ * m_cap_);
     m *= FastSign(-q);
-    m *= a_constant_ + a_linear_ * std::abs(q) + a_square_ * q * q;
+    m *= a_constant_ + a_linear_ * std::abs(q) + (1 - a_linear_) * q * q;
     return m;
   }
 
   float GetM(Node* child, float q) const {
     if (!enabled_ || !parent_within_threshold_) return 0.0f;
     const float child_m = child->GetM();
-    float m = std::clamp(m_slope_ * (child_m - parent_m_), -m_cap_, m_cap_);
+    float m = std::clamp(m_slope_ * (child_m - parent_m_), -m_slope_ * m_cap_, m_slope_ * m_cap_);
     m *= FastSign(-q);
-    m *= a_constant_ + a_linear_ * std::abs(q) + a_square_ * q * q;
+    m *= a_constant_ + a_linear_ * std::abs(q) + (1 - a_linear_) * q * q;
     return m;
   }
 
