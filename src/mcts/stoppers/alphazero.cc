@@ -36,9 +36,14 @@ class AlphazeroTimeManager : public TimeManager {
   AlphazeroTimeManager(int64_t move_overhead, const OptionsDict& params)
       : move_overhead_(move_overhead),
         alphazerotimepct_(
-            params.GetOrDefault<float>("alphazero-time-pct", 12.0f)) {
+            params.GetOrDefault<float>("alphazero-time-pct", 12.0f)),
+        alphazero_pieces_factor_(
+            params.GetOrDefault<float>("alphazero-pieces-factor", 0.5f)) {
     if (alphazerotimepct_ < 0.0f || alphazerotimepct_ > 100.0f)
       throw Exception("alphazero-time-pct value to be in range [0.0, 100.0]");
+    if (alphazero_pieces_factor_ < 0.1f || alphazero_pieces_factor_ > 1.0f)
+      throw Exception(
+                     "alphazero-pieces-factor value to be in range [0.1, 1.0]");
   }
   std::unique_ptr<SearchStopper> GetStopper(const GoParams& params,
                                             const NodeTree& tree) override;
@@ -46,23 +51,34 @@ class AlphazeroTimeManager : public TimeManager {
  private:
   const int64_t move_overhead_;
   const float alphazerotimepct_;
+  const float alphazero_pieces_factor_;
 };
 
 std::unique_ptr<SearchStopper> AlphazeroTimeManager::GetStopper(
     const GoParams& params, const NodeTree& tree) {
   const Position& position = tree.HeadPosition();
   const bool is_black = position.IsBlackToMove();
+  const PositionHistory& history = tree.GetPositionHistory();
+  const auto& board = history.Last().GetBoard();
   const std::optional<int64_t>& time = (is_black ? params.btime : params.wtime);
   // If no time limit is given, don't stop on this condition.
   if (params.infinite || params.ponder || !time) return nullptr;
 
   auto total_moves_time = *time - move_overhead_;
 
-  float this_move_time = total_moves_time * (alphazerotimepct_ / 100.0f);
+  int pieces_on_board = (board.ours() | board.theirs()).count();
+  // Move time reduction equals user parameter input (range 0.1 to 1.0) for 32
+  // pieces on the board, linearly increasing to 1.0 for 3 pieces on the board.
+  float alphazero_pieces_factor = ((alphazero_pieces_factor_ - 1) *
+                    pieces_on_board + (32 - 3 * alphazero_pieces_factor_)) / 29;
+
+  float this_move_time = total_moves_time * (alphazerotimepct_ / 100.0f) *
+                                                        alphazero_pieces_factor;
 
   LOGFILE << "Budgeted time for the move: " << this_move_time << "ms"
-          << "Remaining time " << *time << "ms(-" << move_overhead_
-          << "ms overhead)";
+          << "Remaining time " << *time << "ms (-" << move_overhead_
+          << "ms overhead). Number of pieces on the board: " << pieces_on_board
+          << ", board pieces factor: " << alphazero_pieces_factor ;
 
   return std::make_unique<TimeLimitStopper>(this_move_time);
 }
