@@ -38,7 +38,7 @@ class AlphazeroTimeManager : public TimeManager {
         alphazerotimepct_(
             params.GetOrDefault<float>("alphazero-time-pct", 12.0f)),
         alphazeroincrementpct_(
-            params.GetOrDefault<float>("alphazero-increment-pct", 95.0f))
+            params.GetOrDefault<float>("alphazero-increment-pct", 95.0f)),
         alphazero_pieces_factor_(
             params.GetOrDefault<float>("alphazero-pieces-factor", 0.5f)) {
     if (alphazerotimepct_ < 0.0f || alphazerotimepct_ > 100.0f)
